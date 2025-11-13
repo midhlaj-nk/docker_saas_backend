@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ======================= -->
+        <!-- Actions -->
+        <!-- ======================= -->
+        
+        <!-- Docker Instance Action -->
+        <record id="action_docker_instance" model="ir.actions.act_window">
+            <field name="name">Docker Instances</field>
+            <field name="res_model">docker.instance</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first Docker Instance
+                </p>
+                <p>
+                    Manage Odoo instances using Docker Compose with a simple interface.
+                </p>
+            </field>
+        </record>
+        
+        <!-- Note: Backup actions are defined in backup_views.xml -->
+
+        <!-- ======================= -->
+        <!-- Menus -->
+        <!-- ======================= -->
+        
+        <!-- Root Menu -->
+        <menuitem id="menu_docker_saas_root" 
+                  name="Docker SaaS" 
+                  sequence="10"
+                  web_icon="docker_saas,static/description/icon.png"/>
+
+        <!-- Instances -->
+        <menuitem id="menu_docker_instances" 
+                  name="Instances" 
+                  parent="menu_docker_saas_root"
+                  action="action_docker_instance" 
+                  sequence="10"/>
+
+        <!-- Backups Submenu -->
+        <menuitem id="menu_docker_backups" 
+                  name="Backups" 
+                  parent="menu_docker_saas_root"
+                  sequence="20"/>
+
+        <menuitem id="menu_docker_backup_configs" 
+                  name="Backup Configurations" 
+                  parent="menu_docker_backups"
+                  action="action_docker_backup_config" 
+                  sequence="10"/>
+
+        <menuitem id="menu_docker_backup_records" 
+                  name="Backup History" 
+                  parent="menu_docker_backups"
+                  action="action_docker_backup" 
+                  sequence="20"/>
+
+        <!-- Configuration -->
+        <menuitem id="menu_docker_configuration"
+                  name="Configuration"
+                  parent="menu_docker_saas_root"
+                  sequence="30"/>
+
+        <record id="action_docker_saas_settings" model="ir.actions.act_window">
+            <field name="name">Settings</field>
+            <field name="res_model">res.config.settings</field>
+            <field name="view_mode">form</field>
+            <field name="target">inline</field>
+            <field name="context" eval="{'module': 'docker_saas', 'bin_size': False}"/>
+        </record>
+
+        <menuitem id="menu_docker_pricing_tiers"
+                  name="Pricing Tiers"
+                  parent="menu_docker_configuration"
+                  action="action_docker_pricing_tier"
+                  sequence="10"/>
+
+        <menuitem id="menu_docker_settings"
+                  name="Settings"
+                  parent="menu_docker_configuration"
+                  action="action_docker_saas_settings"
+                  sequence="20"/>
+
+
+
+    </data>
+</odoo>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="ir_cron_docker_saas_auto_backup" model="ir.cron">
+        <field name="name">Docker SaaS Automatic Backups</field>
+        <field name="model_id" ref="docker_saas.model_docker_backup_config"/>
+        <field name="state">code</field>
+        <field name="code">model.run_scheduled_backups()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="numbercall">-1</field>
+        <field name="active">True</field>
+    </record>
+</odoo>
+

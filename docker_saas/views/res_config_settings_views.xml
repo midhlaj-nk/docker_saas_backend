@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_docker_saas" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.docker.saas</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Docker SaaS" name="docker_saas">
+                    <block title="Traefik Domain Mapping" name="traefik_config">
+                        <setting id="traefik_subdomain" string="Base Domain">
+                            <field name="traefik_subdomain" placeholder="easyinstance.com"/>
+                            <div class="text-muted">
+                                Base domain for Traefik routing. Instances will be accessible at: <strong>instance-name.easyinstance.com</strong>
+                            </div>
+                        </setting>
+                        
+                        <setting id="traefik_enable_https" string="HTTPS Configuration">
+                            <field name="traefik_enable_https"/>
+                            <div class="text-muted">Enable HTTPS/TLS with automatic certificate management</div>
+                        </setting>
+                        
+                        <setting id="traefik_cert_resolver" invisible="traefik_enable_https == False">
+                            <label for="traefik_cert_resolver" string="Certificate Resolver"/>
+                            <field name="traefik_cert_resolver" placeholder="letsencrypt"/>
+                        </setting>
+                        
+                        <setting id="traefik_entrypoints" string="Traefik Entrypoints">
+                            <div class="row">
+                                <label for="traefik_http_entrypoint" string="HTTP Entrypoint" class="col-lg-3 o_light_label"/>
+                                <field name="traefik_http_entrypoint" placeholder="web"/>
+                            </div>
+                            <div class="row" invisible="traefik_enable_https == False">
+                                <label for="traefik_https_entrypoint" string="HTTPS Entrypoint" class="col-lg-3 o_light_label"/>
+                                <field name="traefik_https_entrypoint" placeholder="websecure"/>
+                            </div>
+                        </setting>
+                    </block>
+                    <block title="GitHub Integration" name="github_config">
+                        <setting id="git_auth_user">
+                            <field name="git_auth_user" placeholder="GitHub Username or Org"/>
+                        </setting>
+                        <setting id="git_auth_password">
+                            <field name="git_auth_password" placeholder="ghp_********" password="True"/>
+                        </setting>
+                        <setting id="git_webhook_url">
+                            <field name="git_webhook_url" placeholder="https://jenkins.example.com/github-webhook/"/>
+                        </setting>
+                    </block>
+                    <block title="Jenkins Config" name="jenkins_config">
+                        <setting id="jenkins_url">
+                            <field name="jenkins_url" placeholder="http://jenkins.example.com/"/>
+                        </setting>
+                        <setting id="jenkins_username">
+                            <field name="jenkins_username" placeholder="jenkins-user"/>
+                        </setting>
+                        <setting id="jenkins_password">
+                            <field name="jenkins_password" placeholder="*******" password="True"/>
+                        </setting>
+                    </block>
+                    <block title="Development Mode" name="development_mode">
+                        <setting id="development_mode_setting">
+                            <field name="development_mode"/>
+                            <div class="text-muted">
+                                Enable only for local development to expose container ports directly. In production, leave disabled and rely on Traefik domains to avoid port conflicts.
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="docker_pricing_tier_starter" model="docker.pricing.tier">
+        <field name="name">Starter</field>
+        <field name="code">starter</field>
+        <field name="sequence">10</field>
+        <field name="target_user_count">10-30 users</field>
+        <field name="price_monthly">29.0</field>
+        <field name="description">Ideal for small teams with light customization needs.</field>
+        <field name="cpu_limit">2.0</field>
+        <field name="cpu_reservation">1.0</field>
+        <field name="memory_limit">4g</field>
+        <field name="memory_reservation">1g</field>
+        <field name="postgres_cpu_limit">1.0</field>
+        <field name="postgres_cpu_reservation">0.5</field>
+        <field name="postgres_memory_limit">2g</field>
+        <field name="postgres_memory_reservation">1g</field>
+    </record>
+
+    <record id="docker_pricing_tier_professional" model="docker.pricing.tier">
+        <field name="name">Professional</field>
+        <field name="code">professional</field>
+        <field name="sequence">20</field>
+        <field name="target_user_count">30-60 users</field>
+        <field name="price_monthly">69.0</field>
+        <field name="description">Designed for growing companies with heavier workloads.</field>
+        <field name="cpu_limit">4.0</field>
+        <field name="cpu_reservation">2.0</field>
+        <field name="memory_limit">8g</field>
+        <field name="memory_reservation">3g</field>
+        <field name="postgres_cpu_limit">2.0</field>
+        <field name="postgres_cpu_reservation">1.0</field>
+        <field name="postgres_memory_limit">4g</field>
+        <field name="postgres_memory_reservation">2g</field>
+    </record>
+
+    <record id="docker_pricing_tier_enterprise" model="docker.pricing.tier">
+        <field name="name">Enterprise</field>
+        <field name="code">enterprise</field>
+        <field name="sequence">30</field>
+        <field name="target_user_count">60-150 users</field>
+        <field name="price_monthly">149.0</field>
+        <field name="description">Best for large teams needing dedicated resources and SLAs.</field>
+        <field name="cpu_limit">8.0</field>
+        <field name="cpu_reservation">4.0</field>
+        <field name="memory_limit">16g</field>
+        <field name="memory_reservation">8g</field>
+        <field name="postgres_cpu_limit">4.0</field>
+        <field name="postgres_cpu_reservation">2.0</field>
+        <field name="postgres_memory_limit">8g</field>
+        <field name="postgres_memory_reservation">4g</field>
+    </record>
+</odoo>
+

@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ======================= -->
+    <!-- Tree View -->
+    <!-- ======================= -->
+    <record id="view_docker_instance_tree" model="ir.ui.view">
+        <field name="name">docker.instance.tree</field>
+        <field name="model">docker.instance</field>
+        <field name="arch" type="xml">
+            <tree string="Docker Instances" default_order="write_date desc">
+                <field name="name"/>
+                <field name="odoo_version"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'running'"
+                       decoration-info="state == 'stopped'"
+                       decoration-danger="state == 'error'"
+                       decoration-muted="state == 'draft'"/>
+                <field name="http_port"/>
+                <field name="instance_url" widget="url"/>
+                <field name="pricing_tier_id"/>
+                <field name="need_custom_addons"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ======================= -->
+    <!-- Form View -->
+    <!-- ======================= -->
+    <record id="view_docker_instance_form" model="ir.ui.view">
+        <field name="name">docker.instance.form</field>
+        <field name="model">docker.instance</field>
+        <field name="arch" type="xml">
+            <form string="Docker Instance" class="o_form_readonly">
+                <header>
+                    <!-- Show Start only in draft or stopped -->
+                    <button name="action_start_instance"
+                            string="Start"
+                            type="object"
+                            class="btn-primary"
+                            icon="fa-play"
+                            invisible="state != 'draft' and state != 'stopped'"/>
+
+                    <!-- Stop / Restart only when running -->
+                    <button name="action_stop_instance"
+                            string="Stop"
+                            type="object"
+                            class="btn-secondary"
+                            icon="fa-stop"
+                            invisible="state != 'running'"/>
+
+                    <button name="action_restart_instance"
+                            string="Restart"
+                            type="object"
+                            class="btn-info"
+                            icon="fa-refresh"
+                            invisible="state != 'running'"/>
+
+                    <!-- Open only when running -->
+                    <button name="action_open_instance_url"
+                            string="Open Instance"
+                            type="object"
+                            class="btn-success"
+                            icon="fa-external-link"
+                            invisible="state != 'running'"/>
+
+                    <!-- Retry visible only on error -->
+                    <button name="action_start_instance"
+                            string="Retry"
+                            type="object"
+                            class="btn-danger"
+                            icon="fa-redo"
+                            invisible="state != 'error'"/>
+
+                    <!-- Statusbar -->
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,stopped,running,error"/>
+                </header>
+
+                <sheet>
+
+                    <!-- Title -->
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Instance Name..." class="fw-bold text-primary"/>
+                        </h1>
+                    </div>
+
+                    <!-- Connection + DB Info -->
+                    <group>
+                        <group string="Connection Info" col="2">
+                            <field name="odoo_version" readonly="state != 'draft'"/>
+                            <field name="http_port" readonly="state != 'draft'"/>
+                            <field name="longpolling_port" readonly="state != 'draft'"/>
+                            <field name="instance_url" widget="url" invisible="state == 'draft'"/>
+                            <field name="instance_path" readonly="1"/>
+                        </group>
+
+                        <group string="Database">
+                            <field name="db_name" readonly="1"/>
+                            <field name="db_user" readonly="state != 'draft'"/>
+                            <field name="db_password"  readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+
+                    <!-- Traefik Domain Mapping -->
+                    <group>
+                        <group string="Traefik Domain Mapping">
+                            <field name="map_domain" readonly="state != 'draft'"/>
+                            <field name="mapped_domain" widget="url" readonly="1" invisible="mapped_domain == False"/>
+                        </group>
+                    </group>
+
+                    <!-- Admin Access -->
+                    <group>
+                        <group string="Admin Access">
+                            <field name="admin_password" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+
+                    <!-- Tabs -->
+                    <notebook>
+                        <page string="Resources">
+                            <group>
+                                <group string="Pricing Tier">
+                                    <field name="pricing_tier_id"
+                                           domain="[('active', '=', True)]"
+                                           context="{'default_active': True}"
+                                           options="{'no_open': False, 'no_create_edit': True}"/>
+                                    <button name="action_apply_pricing_tier"
+                                            type="object"
+                                            class="btn-secondary"
+                                            string="Apply Tier"
+                                            icon="fa-sliders"
+                                            invisible="pricing_tier_id == False"
+                                            help="Apply the selected pricing tier limits to this instance."/>
+                                </group>
+                            </group>
+                            <group>
+                                <group string="Odoo Container">
+                                    <field name="cpu_limit"/>
+                                    <field name="cpu_reservation"/>
+                                    <field name="memory_limit" placeholder="e.g., 4g, 8g, 16g"/>
+                                    <field name="memory_reservation" placeholder="e.g., 1g, 3g, 8g"/>
+                                </group>
+                                <group string="PostgreSQL Container">
+                                    <field name="postgres_cpu_limit"/>
+                                    <field name="postgres_cpu_reservation"/>
+                                    <field name="postgres_memory_limit" placeholder="e.g., 2g, 4g, 8g"/>
+                                    <field name="postgres_memory_reservation" placeholder="e.g., 1g, 2g, 4g"/>
+                                </group>
+                            </group>
+                            
+                            <separator string="Actions" class="mt-3"/>
+                            <div class="o_row" style="gap: 10px;">
+                                <button name="action_update_resources"
+                                        type="object"
+                                        string="Apply Resource Limits"
+                                        class="btn-primary"
+                                        icon="fa-check"
+                                        invisible="state == 'draft'"
+                                        help="Update and restart containers with new resource limits"/>
+                            </div>
+                            
+                            <separator string="Understanding Resource Limits" class="mt-3"/>
+                            <div class="text-muted">
+                                <ul class="ms-3">
+                                    <li><b>CPU Limit:</b> Maximum CPU cores allowed (e.g., 2.0 = 2 cores, 0 = unlimited)</li>
+                                    <li><b>CPU Reservation:</b> Minimum guaranteed CPU cores</li>
+                                    <li><b>Memory Limit:</b> Maximum memory (e.g., 2g = 2 GB)</li>
+                                    <li><b>Memory Reservation:</b> Minimum guaranteed memory</li>
+                                    <li><b>Note:</b> Applying changes will recreate containers</li>
+                                </ul>
+                            </div>
+                        </page>
+                        
+                        <page string="Docker Compose" invisible="state == 'draft'">
+                            <field name="docker_compose_content" widget="text" readonly="1" nolabel="1"
+                                   placeholder="Compose file will be generated when instance is created..."/>
+                        </page>
+                        <page string="Odoo Configuration" invisible="state == 'draft'">
+                            <field name="odoo_conf_content" widget="text" readonly="1" nolabel="1"
+                                   placeholder="Odoo configuration will appear after instance is started..."/>
+                        </page>
+                        <page string="Backups">
+                            <group>
+                                <group string="Backup Configurations">
+                                    <field name="backup_config_ids" nolabel="1">
+                                        <tree editable="bottom">
+                                            <field name="name"/>
+                                            <field name="backup_frequency"/>
+                                            <field name="backup_directory"/>
+                                            <field name="auto_prune"/>
+                                            <field name="days_to_keep" invisible="auto_prune == False"/>
+                                            <field name="last_execution"/>
+                                            <field name="last_status" widget="badge"
+                                                   decoration-success="last_status == 'success'"
+                                                   decoration-danger="last_status == 'failed'"/>
+                                            <field name="active" widget="boolean_toggle"/>
+                                        </tree>
+                                    </field>
+                                </group>
+                            </group>
+                            <group>
+                                <button name="action_run_backup_now" 
+                                        string="Run Backup Now"
+                                        type="object" 
+                                        class="btn-primary"
+                                        icon="fa-play"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Custom Modules">
+                            <group>
+                                <group string="GitHub Integration">
+                                    <field name="need_custom_addons"/>
+                                    <button name="action_enable_github_integration"
+                                            type="object"
+                                            class="btn-primary"
+                                            string="Enable GitHub Integration"
+                                            icon="fa-github"
+                                            invisible="need_custom_addons == True"
+                                            help="Create a dedicated GitHub repo and Jenkins job that sync custom addons into this instance."/>
+                                    <field name="github_repo_url"
+                                           widget="url"
+                                           readonly="1"
+                                           invisible="need_custom_addons == False"/>
+                                </group>
+                            </group>
+                            <separator string="Upload Modules Manually"/>
+                            <widget name="add_custom_module_widget"/>
+                        </page>
+                    </notebook>
+                </sheet>
+
+                <!-- Chatter -->
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ======================= -->
+    <!-- Kanban View -->
+    <!-- ======================= -->
+    <record id="view_docker_instance_kanban" model="ir.ui.view">
+        <field name="name">docker.instance.kanban</field>
+        <field name="model">docker.instance</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="state"/>
+                <field name="http_port"/>
+                <field name="instance_url"/>
+                <field name="pricing_tier_id"/>
+                <field name="need_custom_addons"/>
+                <field name="github_repo_url"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click p-3 shadow-sm rounded-2 border h-100 d-flex flex-column gap-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="o_kanban_record_title fs-5 d-block"><field name="name"/></strong>
+                                    <div class="small text-muted">
+                                        <t t-if="record.pricing_tier_id.raw_value">
+                                            <span class="badge text-bg-light me-1"><field name="pricing_tier_id"/></span>
+                                        </t>
+                                        <span class="badge text-bg-secondary">Port: <field name="http_port" widget="char"/></span>
+                                    </div>
+                                </div>
+                                <span class="badge rounded-pill"
+                                      t-att-class="record.state.raw_value === 'running' ? 'text-bg-success' :
+                                                   record.state.raw_value === 'stopped' ? 'text-bg-info' :
+                                                   record.state.raw_value === 'error' ? 'text-bg-danger' :
+                                                   'text-bg-secondary'">
+                                    <field name="state"/>
+                                </span>
+                            </div>
+                            <div class="small">
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="fw-semibold me-2">Instance URL:</span>
+                                    <t t-if="record.instance_url.raw_value">
+                                        <a t-att-href="record.instance_url.raw_value" target="_blank">Open</a>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="text-muted">Not available</span>
+                                    </t>
+                                </div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="fw-semibold me-2">Git Repository:</span>
+                                    <t t-if="record.github_repo_url.raw_value">
+                                        <a t-att-href="record.github_repo_url.raw_value" target="_blank">Repository</a>
+                                    </t>
+                                    <t t-elif="record.need_custom_addons.raw_value">
+                                        <span class="text-muted">Enabled</span>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="text-muted">Disabled</span>
+                                    </t>
+                                </div>
+                            </div>
+                            <div class="mt-auto d-flex flex-wrap gap-2">
+                                <button type="object"
+                                        name="action_start_instance"
+                                        class="btn btn-sm btn-primary"
+                                        t-if="record.state.raw_value != 'running'">
+                                    <i class="fa fa-play me-1"/>Start
+                                </button>
+                                <button type="object"
+                                        name="action_stop_instance"
+                                        class="btn btn-sm btn-outline-danger"
+                                        t-if="record.state.raw_value == 'running'">
+                                    <i class="fa fa-stop me-1"/>Stop
+                                </button>
+                                <button type="object"
+                                        name="action_restart_instance"
+                                        class="btn btn-sm btn-outline-secondary"
+                                        t-if="record.state.raw_value == 'running'">
+                                    <i class="fa fa-refresh me-1"/>Restart
+                                </button>
+                                <button type="object"
+                                        name="action_open_instance_url"
+                                        class="btn btn-sm btn-outline-success"
+                                        t-if="record.instance_url.raw_value">
+                                    <i class="fa fa-external-link me-1"/>Open
+                                </button>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ======================= -->
+    <!-- Search View -->
+    <!-- ======================= -->
+    <record id="view_docker_instance_search" model="ir.ui.view">
+        <field name="name">docker.instance.search</field>
+        <field name="model">docker.instance</field>
+        <field name="arch" type="xml">
+            <search string="Docker Instances">
+                <field name="name"/>
+                <field name="http_port"/>
+                <field name="odoo_version"/>
+                <field name="pricing_tier_id"/>
+                <field name="need_custom_addons"/>
+                <field name="github_repo_url"/>
+                <filter string="Running" name="running" domain="[('state', '=', 'running')]"/>
+                <filter string="Stopped" name="stopped" domain="[('state', '=', 'stopped')]"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Error" name="error" domain="[('state', '=', 'error')]"/>
+                <filter string="GitHub Enabled" name="github_enabled" domain="[('need_custom_addons', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="State" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Odoo Version" name="group_version" context="{'group_by': 'odoo_version'}"/>
+                    <filter string="Pricing Tier" name="group_tier" context="{'group_by': 'pricing_tier_id'}"/>
+                    <filter string="GitHub Integration" name="group_github" context="{'group_by': 'need_custom_addons'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

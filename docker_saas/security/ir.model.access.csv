@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_docker_instance_user,access_docker_instance_user,model_docker_instance,base.group_user,1,1,1,1
+access_docker_instance_system,access_docker_instance_system,model_docker_instance,base.group_system,1,1,1,1
+access_docker_backup_config_user,access_docker_backup_config_user,model_docker_backup_config,base.group_user,1,1,1,1
+access_docker_backup_config_system,access_docker_backup_config_system,model_docker_backup_config,base.group_system,1,1,1,1
+access_docker_backup_user,access_docker_backup_user,model_docker_backup,base.group_user,1,1,1,1
+access_docker_backup_system,access_docker_backup_system,model_docker_backup,base.group_system,1,1,1,1
+access_docker_pricing_tier_user,access_docker_pricing_tier_user,model_docker_pricing_tier,base.group_user,1,1,1,0
+access_docker_pricing_tier_system,access_docker_pricing_tier_system,model_docker_pricing_tier,base.group_system,1,1,1,1
+

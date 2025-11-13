@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_docker_pricing_tier_tree" model="ir.ui.view">
+        <field name="name">docker.pricing.tier.tree</field>
+        <field name="model">docker.pricing.tier</field>
+        <field name="arch" type="xml">
+            <tree string="Pricing Tiers">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="target_user_count"/>
+                <field name="price_monthly"/>
+                <field name="cpu_limit"/>
+                <field name="memory_limit"/>
+                <field name="postgres_memory_limit"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_docker_pricing_tier_form" model="ir.ui.view">
+        <field name="name">docker.pricing.tier.form</field>
+        <field name="model">docker.pricing.tier</field>
+        <field name="arch" type="xml">
+            <form string="Pricing Tier">
+                <header>
+                    <button name="action_apply_to_instances"
+                            type="object"
+                            class="oe_highlight"
+                            string="Apply to Linked Instances"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="sequence" widget="handle"/>
+                            <field name="target_user_count"/>
+                            <field name="price_monthly"/>
+                        </group>
+                        <group>
+                            <field name="description" widget="text"/>
+                            <field name="notes" widget="text"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Odoo Resources">
+                            <group>
+                                <field name="cpu_limit"/>
+                                <field name="cpu_reservation"/>
+                                <field name="memory_limit" placeholder="e.g., 4g"/>
+                                <field name="memory_reservation" placeholder="e.g., 1g"/>
+                            </group>
+                        </page>
+                        <page string="PostgreSQL Resources">
+                            <group>
+                                <field name="postgres_cpu_limit"/>
+                                <field name="postgres_cpu_reservation"/>
+                                <field name="postgres_memory_limit" placeholder="e.g., 2g"/>
+                                <field name="postgres_memory_reservation" placeholder="e.g., 1g"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_docker_pricing_tier" model="ir.actions.act_window">
+        <field name="name">Pricing Tiers</field>
+        <field name="res_model">docker.pricing.tier</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'default_active': True}</field>
+    </record>
+</odoo>
+
