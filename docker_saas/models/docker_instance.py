@@ -647,9 +647,7 @@ echo "=== Deployment Completed ==="
                 f'      - "traefik.http.middlewares.{name_prefix}-redirect.redirectscheme.scheme=https"',
                 f'      - "traefik.http.middlewares.{name_prefix}-redirect.redirectscheme.permanent=true"',
                 f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.X-Forwarded-Proto=https"',
-                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.X-Real-IP={{{{.RemoteAddr}}}}"',
                 f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Upgrade=websocket"',
-                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Connection=Upgrade"',
             ])
         else:
             labels.extend([
