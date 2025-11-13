@@ -666,9 +666,13 @@ echo "=== Deployment Completed ==="
     # --------------------------------------------------
     # DOCKER COMPOSE + CONF
     # --------------------------------------------------
-    @api.depends('name', 'odoo_version', 'db_name', 'db_user', 'db_password', 'http_port', 'longpolling_port', 
-                 'map_domain', 'cpu_limit', 'cpu_reservation', 'memory_limit', 'memory_reservation',
-                 'postgres_cpu_limit', 'postgres_cpu_reservation', 'postgres_memory_limit', 'postgres_memory_reservation')
+    @api.depends(
+        'name', 'odoo_version', 'db_name', 'db_user', 'db_password',
+        'http_port', 'longpolling_port', 'map_domain',
+        'cpu_limit', 'cpu_reservation', 'memory_limit', 'memory_reservation',
+        'postgres_cpu_limit', 'postgres_cpu_reservation',
+        'postgres_memory_limit', 'postgres_memory_reservation'
+    )
     def _compute_docker_compose_content(self):
         for inst in self:
             if not inst.name:
@@ -679,10 +683,11 @@ echo "=== Deployment Completed ==="
                 '17.0': 'odoo:17.0',
                 '18.0': 'odoo:18.0',
                 '19.0': 'odoo:19.0',
-            }.get(inst.odoo_version, 'odoo:17.0')
+            }.get(inst.odoo_version)
 
-            path = inst.instance_path or '/tmp/odoo_docker'
+            path = inst.instance_path
             traefik_labels = inst._get_traefik_labels()
+
             ports_lines = []
             if inst.is_development_mode():
                 if inst.http_port:
@@ -690,20 +695,22 @@ echo "=== Deployment Completed ==="
                 if inst.longpolling_port:
                     ports_lines.append(f'      - "{inst.longpolling_port}:8072"')
 
-            # Generate resource limits sections
             db_resources = inst._get_resource_section(
                 inst.postgres_cpu_limit,
                 inst.postgres_cpu_reservation,
                 inst.postgres_memory_limit,
                 inst.postgres_memory_reservation
             )
-            
             odoo_resources = inst._get_resource_section(
                 inst.cpu_limit,
                 inst.cpu_reservation,
                 inst.memory_limit,
                 inst.memory_reservation
             )
+
+            # ------------------------------------------------------
+            # >>> FIX ADDED HERE — Attach services to network "web"
+            # ------------------------------------------------------
 
             lines = [
                 "services:",
@@ -718,6 +725,8 @@ echo "=== Deployment Completed ==="
                 "    volumes:",
                 "      - odoo-db-data:/var/lib/postgresql/data/pgdata",
                 "    restart: always",
+                "    networks:",  # <-- FIX
+                "      - web",  # <-- FIX
             ]
 
             if db_resources:
@@ -732,6 +741,8 @@ echo "=== Deployment Completed ==="
                 "    user: root",
                 "    depends_on:",
                 "      - db",
+                "    networks:",  # <-- FIX
+                "      - web",  # <-- FIX
             ])
 
             if ports_lines:
@@ -756,11 +767,19 @@ echo "=== Deployment Completed ==="
             if odoo_resources:
                 lines.extend(odoo_resources)
 
+            # ------------------------------------------------------
+            # Add volumes + networks at bottom
+            # ------------------------------------------------------
+
             lines.extend([
                 "",
                 "volumes:",
                 "  odoo-web-data:",
                 "  odoo-db-data:",
+                "",
+                "networks:",
+                "  web:",
+                "    external: true",
                 "",
             ])
 
