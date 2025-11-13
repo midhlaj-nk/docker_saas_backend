@@ -6,6 +6,8 @@ import socket
 import string
 import subprocess
 import re
+import shlex
+import tempfile
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
@@ -535,32 +537,30 @@ echo "=== Deployment Completed ==="
     def _get_resource_section(self, cpu_limit, cpu_reservation, memory_limit, memory_reservation):
         """Generate deploy resources section for docker-compose"""
         self.ensure_one()
-        
-        has_limits = cpu_limit > 0 or memory_limit
-        has_reservations = cpu_reservation > 0 or memory_reservation
-        
+
+        has_limits = cpu_limit > 0 or bool(memory_limit)
+        has_reservations = cpu_reservation > 0 or bool(memory_reservation)
+
         if not has_limits and not has_reservations:
-            return ''
-        
-        lines = ['\n    deploy:', '      resources:']
-        
-        # Limits
+            return []
+
+        lines = ['    deploy:', '      resources:']
+
         if has_limits:
             lines.append('        limits:')
             if cpu_limit > 0:
                 lines.append(f'          cpus: "{cpu_limit}"')
             if memory_limit:
                 lines.append(f'          memory: {memory_limit}')
-        
-        # Reservations
+
         if has_reservations:
             lines.append('        reservations:')
             if cpu_reservation > 0:
                 lines.append(f'          cpus: "{cpu_reservation}"')
             if memory_reservation:
                 lines.append(f'          memory: {memory_reservation}')
-        
-        return '\n'.join(lines)
+
+        return lines
 
     def action_update_resources(self):
         """Update resource limits and restart instance if running"""
@@ -571,12 +571,12 @@ echo "=== Deployment Completed ==="
         
         # Regenerate docker-compose with new resource limits
         compose_path = os.path.join(self.instance_path, 'docker-compose.yml')
-        self._write_file(compose_path, self.docker_compose_content)
+        self._write_compose_file(compose_path, self.docker_compose_content)
         
         if self.state == 'running':
             # Restart to apply new resource limits
             try:
-                self._run(f"docker-compose -f {compose_path} up -d --force-recreate")
+                self._run(f"docker compose -f {compose_path} up -d --force-recreate")
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',
@@ -607,22 +607,21 @@ echo "=== Deployment Completed ==="
     def _get_instance_slug(self):
         """Generate URL-safe slug from instance name"""
         self.ensure_one()
-        if not self.name:
-            return 'odoo-instance'
-        slug = re.sub(r'[^0-9a-zA-Z-]', '-', self.name).lower()
+        name = (self.name or '').lower()
+        slug = re.sub(r'[^a-z0-9-]+', '-', name)
         slug = re.sub(r'-+', '-', slug).strip('-')
-        return slug or 'odoo-instance'
+        return slug or 'instance'
 
     def _get_traefik_labels(self):
         """Generate Traefik labels for docker-compose with Odoo websocket support"""
         self.ensure_one()
         if not self.map_domain:
-            return ''
+            return []
 
         config = self.env['ir.config_parameter'].sudo()
         subdomain = config.get_param('docker_saas.traefik_subdomain', '').strip()
         if not subdomain:
-            return ''
+            return []
 
         enable_https = config.get_param('docker_saas.traefik_enable_https', 'True') == 'True'
         cert_resolver = config.get_param('docker_saas.traefik_cert_resolver', 'letsencrypt')
@@ -631,52 +630,38 @@ echo "=== Deployment Completed ==="
 
         slug = self._get_instance_slug()
         host = f"{slug}.{subdomain}"
-        router_name = slug.replace('.', '-').replace('_', '-')
+        name_prefix = slug.replace('.', '-').replace('_', '-')
 
-        labels = ['    labels:']
-        labels.append('      - "traefik.enable=true"')
+        labels = ['    labels:', '      - "traefik.enable=true"']
 
         if enable_https:
-            # HTTPS router with Odoo middleware
             labels.extend([
-                f'      - "traefik.http.routers.{router_name}.rule=Host(`{host}`)"',
-                f'      - "traefik.http.routers.{router_name}.entrypoints={https_entrypoint}"',
-                f'      - "traefik.http.routers.{router_name}.tls=true"',
-                f'      - "traefik.http.routers.{router_name}.tls.certresolver={cert_resolver}"',
-                f'      - "traefik.http.routers.{router_name}.middlewares={router_name}-headers"',
-            ])
-            # HTTP to HTTPS redirect
-            labels.extend([
-                f'      - "traefik.http.routers.{router_name}-http.rule=Host(`{host}`)"',
-                f'      - "traefik.http.routers.{router_name}-http.entrypoints={http_entrypoint}"',
-                f'      - "traefik.http.routers.{router_name}-http.middlewares={router_name}-redirect"',
-                f'      - "traefik.http.middlewares.{router_name}-redirect.redirectscheme.scheme=https"',
-                f'      - "traefik.http.middlewares.{router_name}-redirect.redirectscheme.permanent=true"',
-            ])
-            # Odoo-specific headers middleware for websocket and proxy support
-            labels.extend([
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.X-Forwarded-Proto=https"',
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.X-Real-IP={{{{.RemoteAddr}}}}"',
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.Upgrade=websocket"',
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.Connection=Upgrade"',
+                f'      - "traefik.http.routers.{name_prefix}.rule=Host(`{host}`)"',
+                f'      - "traefik.http.routers.{name_prefix}.entrypoints={https_entrypoint}"',
+                f'      - "traefik.http.routers.{name_prefix}.tls=true"',
+                f'      - "traefik.http.routers.{name_prefix}.tls.certresolver={cert_resolver}"',
+                f'      - "traefik.http.routers.{name_prefix}.middlewares={name_prefix}-headers"',
+                f'      - "traefik.http.routers.{name_prefix}-http.rule=Host(`{host}`)"',
+                f'      - "traefik.http.routers.{name_prefix}-http.entrypoints={http_entrypoint}"',
+                f'      - "traefik.http.routers.{name_prefix}-http.middlewares={name_prefix}-redirect"',
+                f'      - "traefik.http.middlewares.{name_prefix}-redirect.redirectscheme.scheme=https"',
+                f'      - "traefik.http.middlewares.{name_prefix}-redirect.redirectscheme.permanent=true"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.X-Forwarded-Proto=https"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.X-Real-IP={{{{.RemoteAddr}}}}"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Upgrade=websocket"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Connection=Upgrade"',
             ])
         else:
-            # HTTP only with Odoo headers
             labels.extend([
-                f'      - "traefik.http.routers.{router_name}.rule=Host(`{host}`)"',
-                f'      - "traefik.http.routers.{router_name}.entrypoints={http_entrypoint}"',
-                f'      - "traefik.http.routers.{router_name}.middlewares={router_name}-headers"',
-            ])
-            # Basic headers for HTTP
-            labels.extend([
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.Upgrade=websocket"',
-                f'      - "traefik.http.middlewares.{router_name}-headers.headers.customrequestheaders.Connection=Upgrade"',
+                f'      - "traefik.http.routers.{name_prefix}.rule=Host(`{host}`)"',
+                f'      - "traefik.http.routers.{name_prefix}.entrypoints={http_entrypoint}"',
+                f'      - "traefik.http.routers.{name_prefix}.middlewares={name_prefix}-headers"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Upgrade=websocket"',
+                f'      - "traefik.http.middlewares.{name_prefix}-headers.headers.customrequestheaders.Connection=Upgrade"',
             ])
 
-        # Service configuration
-        labels.append(f'      - "traefik.http.services.{router_name}.loadbalancer.server.port=8069"')
-        
-        return '\n' + '\n'.join(labels)
+        labels.append(f'      - "traefik.http.services.{name_prefix}.loadbalancer.server.port=8069"')
+        return labels
 
     # --------------------------------------------------
     # DOCKER COMPOSE + CONF
@@ -698,13 +683,12 @@ echo "=== Deployment Completed ==="
 
             path = inst.instance_path or '/tmp/odoo_docker'
             traefik_labels = inst._get_traefik_labels()
-            ports_section = ''
+            ports_lines = []
             if inst.is_development_mode():
-                ports_section = (
-                    '    ports:\n'
-                    f'      - "{inst.http_port}:8069"\n'
-                    f'      - "{inst.longpolling_port}:8072"\n'
-                )
+                if inst.http_port:
+                    ports_lines.append(f'      - "{inst.http_port}:8069"')
+                if inst.longpolling_port:
+                    ports_lines.append(f'      - "{inst.longpolling_port}:8072"')
 
             # Generate resource limits sections
             db_resources = inst._get_resource_section(
@@ -720,42 +704,67 @@ echo "=== Deployment Completed ==="
                 inst.memory_limit,
                 inst.memory_reservation
             )
-            
-            compose = f"""
-services:
-  db:
-    image: postgres:16
-    container_name: {inst.db_name}_db
-    environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER={inst.db_user}
-      - POSTGRES_PASSWORD={inst.db_password}
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - odoo-db-data:/var/lib/postgresql/data/pgdata
-    restart: always{db_resources}
 
-  odoo:
-    image: {odoo_image}
-    container_name: {inst.db_name}_odoo
-    user: root
-    depends_on:
-      - db
-    {ports_section}    environment:
-      - HOST=db
-      - USER={inst.db_user}
-      - PASSWORD={inst.db_password}
-    volumes:
-      - odoo-web-data:/var/lib/odoo
-      - {path}/config:/etc/odoo
-      - {path}/addons:/mnt/extra-addons
-    restart: always{traefik_labels}{odoo_resources}
+            lines = [
+                "services:",
+                "  db:",
+                "    image: postgres:16",
+                f"    container_name: {inst.db_name}_db",
+                "    environment:",
+                "      POSTGRES_DB: postgres",
+                f"      POSTGRES_USER: {inst.db_user}",
+                f"      POSTGRES_PASSWORD: {inst.db_password}",
+                "      PGDATA: /var/lib/postgresql/data/pgdata",
+                "    volumes:",
+                "      - odoo-db-data:/var/lib/postgresql/data/pgdata",
+                "    restart: always",
+            ]
 
-volumes:
-  odoo-web-data:
-  odoo-db-data:
-"""
-            inst.docker_compose_content = compose
+            if db_resources:
+                lines.extend(db_resources)
+
+            lines.append("")
+
+            lines.extend([
+                "  odoo:",
+                f"    image: {odoo_image}",
+                f"    container_name: {inst.db_name}_odoo",
+                "    user: root",
+                "    depends_on:",
+                "      - db",
+            ])
+
+            if ports_lines:
+                lines.append("    ports:")
+                lines.extend(ports_lines)
+
+            lines.extend([
+                "    environment:",
+                "      HOST: db",
+                f"      USER: {inst.db_user}",
+                f"      PASSWORD: {inst.db_password}",
+                "    volumes:",
+                "      - odoo-web-data:/var/lib/odoo",
+                f"      - {path}/config:/etc/odoo",
+                f"      - {path}/addons:/mnt/extra-addons",
+                "    restart: always",
+            ])
+
+            if traefik_labels:
+                lines.extend(traefik_labels)
+
+            if odoo_resources:
+                lines.extend(odoo_resources)
+
+            lines.extend([
+                "",
+                "volumes:",
+                "  odoo-web-data:",
+                "  odoo-db-data:",
+                "",
+            ])
+
+            inst.docker_compose_content = "\n".join(lines)
 
     @api.depends('admin_password', 'db_password', 'db_user', 'db_name')
     def _compute_odoo_conf_content(self):
@@ -784,6 +793,26 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
         with open(path, 'w') as f:
             f.write(content)
 
+    def _write_compose_file(self, path, content):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(prefix='docker-compose-', suffix='.yml', dir=os.path.dirname(path))
+        try:
+            with os.fdopen(fd, 'w') as tmp_file:
+                tmp_file.write(content)
+            try:
+                quoted_tmp = shlex.quote(tmp_path)
+                self._run(f"docker compose -f {quoted_tmp} config")
+            except UserError as err:
+                _logger.error("docker compose config validation failed for %s: %s", self.name, err)
+                raise UserError(_("Invalid docker-compose generated"))
+            os.replace(tmp_path, path)
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
     def _run(self, cmd):
         _logger.info(f"Running command: {cmd}")
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
@@ -807,12 +836,12 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
             self.enable_github_integration(raise_on_error=True)
 
         compose = os.path.join(self.instance_path, 'docker-compose.yml')
-        self._write_file(compose, self.docker_compose_content)
+        self._write_compose_file(compose, self.docker_compose_content)
         conf = os.path.join(self.instance_path, 'config', 'odoo.conf')
         self._write_file(conf, self.odoo_conf_content)
 
         try:
-            self._run(f"docker-compose -f {compose} up -d")
+            self._run(f"docker compose -f {compose} up -d")
             self.state = 'running'
             self.message_post(body=_("Instance started successfully."))
         except UserError as e:
@@ -838,7 +867,7 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
             raise UserError(_("docker-compose.yml not found"))
 
         try:
-            self._run(f"docker-compose -f {compose} down")
+            self._run(f"docker compose -f {compose} down")
             self.state = 'stopped'
             self.message_post(body=_("Instance stopped successfully."))
         except UserError as e:
@@ -851,7 +880,7 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
         self.ensure_one()
         compose = os.path.join(self.instance_path, 'docker-compose.yml')
         try:
-            self._run(f"docker-compose -f {compose} restart")
+            self._run(f"docker compose -f {compose} restart")
             if self.state != 'running':
                 self.state = 'running'
             self.message_post(body=_("Instance restarted successfully."))
@@ -910,7 +939,7 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
                 compose = os.path.join(rec.instance_path, 'docker-compose.yml')
                 if os.path.exists(compose):
                     try:
-                        rec._run(f"docker-compose -f {compose} down -v")
+                        rec._run(f"docker compose -f {compose} down -v")
                         rec.message_post(body=_("Instance containers stopped and removed before deletion."))
                     except Exception as e:
                         _logger.warning(f"Cleanup failed for {rec.name}: {e}")
