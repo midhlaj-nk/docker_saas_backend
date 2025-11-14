@@ -1,12 +1,12 @@
 {
-    "name": "Docker SaaS - Simple Docker Compose Manager",
+    "name": "Docker SaaS ",
     "category": "Tools",
     "summary": "Simplified Odoo Docker instance management with Docker Compose",
     "description": """
         This module allows you to manage Odoo instances using Docker Compose.
         Simplified version without template variables.
     """,
-    "author": "Your Name",
+    "author": "Midhexe",
     "website": "",
     "license": "AGPL-3",
     "version": "17.0.1.0",

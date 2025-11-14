@@ -713,7 +713,7 @@ echo "=== Deployment Completed ==="
             lines = [
                 "services:",
                 "  db:",
-                "    image: postgres:16",
+                "    image: postgres:15",
                 f"    container_name: {inst.db_name}_db",
                 "    environment:",
                 "      POSTGRES_DB: postgres",
@@ -723,8 +723,8 @@ echo "=== Deployment Completed ==="
                 "    volumes:",
                 "      - odoo-db-data:/var/lib/postgresql/data/pgdata",
                 "    restart: always",
-                "    networks:",  # <-- FIX
-                "      - web",  # <-- FIX
+                "    networks:",
+                "      - web",
             ]
 
             if db_resources:
@@ -908,10 +908,20 @@ addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
             raise
 
     def action_open_instance_url(self):
+
         self.ensure_one()
-        if not self.instance_url:
+
+        # Prefer Traefik domain
+        url = self.mapped_domain or self.instance_url
+
+        if not url:
             raise UserError(_("No URL available"))
-        return {'type': 'ir.actions.act_url', 'url': self.instance_url, 'target': 'new'}
+
+        return {
+            "type": "ir.actions.act_url",
+            "url": url,
+            "target": "new",
+        }
 
     # --------------------------------------------------
     # BACKUP ACTIONS

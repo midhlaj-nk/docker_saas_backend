@@ -104,10 +104,10 @@
                     </group>
 
                     <!-- Traefik Domain Mapping -->
-                    <group>
+                    <group >
                         <group string="Traefik Domain Mapping">
                             <field name="map_domain" readonly="state != 'draft'"/>
-                            <field name="mapped_domain" widget="url" readonly="1" invisible="mapped_domain == False"/>
+                            <field name="mapped_domain" widget="url" readonly="1" />
                         </group>
                     </group>
 
