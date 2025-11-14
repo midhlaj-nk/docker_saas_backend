@@ -796,7 +796,7 @@ db_port = 5432
 db_user = {inst.db_user}
 db_password = {inst.db_password}
 db_name = {inst.name}
-addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+addons_path = /mnt/extra-addons,/mnt/extra-addons/git_addons,/usr/lib/python3/dist-packages/odoo/addons
 """
 
     # --------------------------------------------------
