@@ -378,7 +378,7 @@ ls -la "${{ADDONS_PATH}}"/
 if [ -f "${{COMPOSE_FILE}}" ]; then
     echo "Restarting Docker Compose instance..."
     cd "${{INSTANCE_PATH}}"
-    docker-compose restart odoo || docker-compose up -d odoo
+    docker compose restart odoo || docker compose up -d odoo
     echo "Instance restarted successfully"
 else
     echo "WARNING: Docker Compose file not found at ${{COMPOSE_FILE}}"
